@@ -1,0 +1,119 @@
+# Minibús Rush: Rutas Urbanas
+
+Prototipo universitario de simulación y conducción 3D para navegador, inspirado en el transporte urbano de La Paz y El Alto (Bolivia). Construido con Three.js sobre Vite, sin modelos 3D externos: toda la geometría (ciudad y vehículo) es procedural.
+
+> ⚠️ Estado actual: **Fase 4 completada** — ciudad, minibús, cámara, movimiento, paradas, pasajeros, dinero, ruta con GPS, combustible, desgaste del vehículo, reputación, gasolinera, taller mecánico, tráfico NPC, semáforos, policía/multas y eventos aleatorios. Queda la Fase 5 (menús, mejoras, día/noche y pulido visual).
+
+## Novedades de la versión mejorada (v0.2.0)
+
+- **Colisiones**: el minibús se modela con 3 círculos alineados a su orientación; se desliza por paredes y esquinas sin rebotar ni atravesar. Mismo sistema contra el tráfico.
+- **Conducción**: dirección y aceleración suavizadas, giro más estable a alta velocidad, sin asignaciones por cuadro.
+- **Tráfico**: frenadas con perfil físico (sin frenar en seco), mejor distancia de seguridad, más variedad de colores y carrocerías (sedán, hatchback, SUV), vidrios y tapacubos.
+- **Visual**: mapa de entorno procedural (reflejos en pintura, vidrios y asfalto mojado), iluminación y exposición reajustadas, minibús con barniz, llantas y tuercas, portaequipajes, faldones y placas; ciudad con árboles, bancas, basureros, bolardos, cornisas y zócalos.
+- **Táctil**: controles en pantalla (girar, acelerar, frenar, freno de mano, bocina, cámara, F/G, pausa) para teléfonos y tablets.
+- **Jugar.html**: se regenera con `npm run build:single` (archivo único, funciona con doble clic).
+
+## Tecnologías
+
+- HTML5 / CSS3 / JavaScript (módulos ES6)
+- [Three.js](https://threejs.org/)
+- [Vite](https://vitejs.dev/)
+
+## Instalación y ejecución
+
+```bash
+npm install
+npm run dev
+```
+
+Vite abrirá automáticamente el navegador en `http://localhost:5173`. Si no se abre solo, ingresa esa URL manualmente.
+
+Para generar una build de producción:
+
+```bash
+npm run build
+npm run preview
+npm run build:single   # regenera ../Jugar.html (archivo único)
+```
+
+## Controles (Fase 1)
+
+| Tecla | Acción |
+| --- | --- |
+| `W` / `↑` | Acelerar |
+| `S` / `↓` | Frenar / Reversa |
+| `A` `D` / `← →` | Girar |
+| `Espacio` | Freno de mano |
+| `C` | Cambiar cámara (detrás / elevada / cercana) |
+| `F` | Repostar en la gasolinera (si estás cerca y detenido) |
+| `G` | Reparar en el taller mecánico (si estás cerca y detenido) |
+
+## Estructura del proyecto
+
+```
+/minibus-rush
+  /public/assets/{models,textures,sounds}   # preparado para recursos futuros
+  /src
+    /game         # toda la logica del juego (ciudad, minibus, trafico, ruta,
+                   # combustible, policia, eventos...), un archivo por sistema
+      index.js     # orquestador principal (escena, luces, loop)
+    /ui           # interfaz (HUD.js)
+    main.js       # punto de entrada
+    style.css     # estilos globales del HUD
+  /sitio-web      # pagina web de presentacion del proyecto (aparte del juego)
+  index.html
+  package.json
+```
+
+Cada archivo dentro de `/src/game` es una sola responsabilidad (un sistema o
+una pieza del mundo/vehículo), pero todos viven en la misma carpeta para no
+tener que navegar varios niveles de subcarpetas.
+
+## Características implementadas
+
+**Fase 1 — Base jugable**
+- Ciudad procedural con grilla de manzanas, edificios coloridos, aceras, avenidas marcadas, faroles, montañas de fondo y un teleférico decorativo animado.
+- Minibús construido con geometría procedural (carrocería, techo, ventanas, puertas, parachoques, luces, espejos, ruedas con giro y rodado visual) con aspecto deliberadamente desgastado.
+- Conducción en tercera persona con aceleración, frenado, reversa, freno de mano y giro progresivo dependiente de la velocidad.
+- Tres modos de cámara (detrás, elevada, cercana) con seguimiento suavizado.
+- Colisiones básicas contra edificios y límites de la ciudad.
+
+**Fase 2 — Paradas, pasajeros y economía**
+- Ruta fija Terminal → Mercado Central → Centro → Zona Sur, con 4 paradas físicas en la ciudad (poste + letrero + anillo indicador en el piso).
+- Pasajeros simples (cápsula + cabeza) esperando en cada parada, con tarifas variables: normal (2 Bs), trayecto largo (3 Bs) y especial (5 Bs).
+- Embarque automático: al detenerse cerca de una parada con pasajeros esperando, suben solos tras un par de segundos, uno por uno.
+- Dinero e HUD en tiempo real: contador de Bs con "popups" flotantes al cobrar, contador de pasajeros a bordo (X/8).
+- Mini-mapa GPS en pantalla: muestra la ruta, todas las paradas (gris = pendiente, amarillo pulsante = destino actual, verde = ya visitada) y la posición/orientación del jugador.
+- Los pasajeros suben en el camino y viajan a bordo durante todo el recorrido (nadie se baja a mitad de ruta); todos bajan juntos al llegar a la última parada.
+- Al completar la ruta se muestra "RUTA COMPLETADA" con la cantidad de pasajeros que bajaron y la recompensa (25 Bs), y la ruta se reinicia automáticamente para seguir jugando.
+
+**Fase 3 — Combustible, desgaste, reputación y garaje**
+- Combustible: empieza en 100% y se consume al conducir; en 0% el motor se apaga y aparece "Te quedaste sin combustible" (el bus sigue frenando por inercia, no se detiene en seco).
+- Gasolinera procedural (canopy + surtidores) donde repostar cerca y detenido con `F`, pagando según lo que falte para llenar el tanque.
+- Desgaste del vehículo en 5 estadísticas (motor, frenos, neumáticos, suspensión, carrocería), todas arrancando en 60% como pide el concepto. El desgaste bajo el 40%/20% reduce de forma perceptible la aceleración, el frenado y el giro.
+- Los choques dañan la suspensión y la carrocería (con un cooldown para no destruir todo de golpe si el bus queda atascado contra una pared).
+- Taller mecánico (nave con cartel) donde reparar todas las estadísticas al 100% cerca y detenido con `G`, pagando según el desgaste acumulado.
+- Reputación de 0 a 100 con niveles (Mal conductor → Conductor destacado): sube por transportar pasajeros y completar rutas, baja por chocar, y se recupera lentamente con buena conducción.
+- HUD ampliado con combustible, reputación (con su nivel), advertencias de desgaste crítico y mensajes emergentes (repostaje, reparación, dinero insuficiente).
+
+**Pulido visual — Fachadas "a medio construir"**
+- Los edificios más altos combinan planta baja pintada de color vivo con pisos superiores en ladrillo/concreto crudo sin pintar, y varillas de fierro asomando del techo — el aspecto de autoconstrucción por etapas típico de El Alto.
+
+**Pulido visual — Texturas y proporciones del minibús**
+- La carrocería usa texturas generadas por código (Canvas2D, sin imágenes externas): pintura con variaciones sutiles de tono, costuras de chapa, una franja de acento y mugre/óxido acumulado cerca de las ruedas.
+- El frente tiene una rejilla ancha (casi de esquina a esquina) con faros más grandes en las esquinas y marcadores ámbar, y el letrero de destino muestra el número de ruta ("101") en vez de quedar en blanco.
+- Atrás: luces más verticales/integradas con marcador ámbar, tercera luz de freno y ventana trasera.
+- Arcos/salpicaderas oscuros sobre cada rueda, para que no queden "pegadas" a un costado liso.
+- Estas proporciones se ajustaron mirando referencias reales de minibuses tipo van (solo como inspiración visual, sin copiar ninguna imagen ni diseño de marca).
+
+**Fase 4 — Tráfico, semáforos, policía y eventos aleatorios**
+- Tráfico NPC (autos, taxis, otros minibuses y camiones) circulando en dos carriles por cada calle interna de la ciudad, con geometría y materiales compartidos entre instancias. Chocar contra uno produce daño leve al minibús (sin detener al NPC, que no tiene IA de reacción).
+- 16 semáforos funcionales (verde/amarillo/rojo) en los cruces internos, cada uno con su propio ciclo. Cruzar uno en rojo genera una infracción de tránsito.
+- Policía: 2 puntos de control fijos con un agente procedural. Las infracciones (semáforo en rojo) restan reputación siempre, y pueden derivar en una multa en dinero si ocurren cerca de un control o si el jugador acumula demasiadas infracciones seguidas. Sin opción de soborno: si no tienes plata para pagar, solo queda la advertencia.
+- 7 eventos aleatorios que aparecen cada cierto tiempo: tráfico pesado, lluvia (con superposición visual y menos tracción al girar/frenar), bloqueo de calle (velocidad máxima reducida un rato), accidente (detiene a un vehículo NPC), control de tránsito reforzado, desperfecto mecánico (daña una estadística al azar) y mucha demanda de pasajeros (llegan más personas a la parada actual).
+
+## Próximas fases
+
+- **Fase 5:** menú principal, pausa, mejoras del vehículo, ciclo día/noche y pulido visual.
+
+Este proyecto es un **prototipo universitario** desarrollado para la asignatura de Programación Gráfica y Multimedia I. No representa marcas comerciales reales ni pretende ser una reproducción exacta de la ciudad de La Paz/El Alto.

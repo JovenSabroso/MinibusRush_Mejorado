@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0c0e" />
+    <title>Minibús Rush: Rutas Urbanas</title>
+    <meta name="description" content="Simulador arcade de minibús en una ciudad procedural inspirada en La Paz y El Alto, Bolivia." />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f2b705'/%3E%3Crect x='5' y='9' width='22' height='15' rx='2' fill='%23111'/%3E%3Crect x='7' y='11' width='18' height='5' fill='%23f2b705'/%3E%3Ccircle cx='10' cy='25' r='3' fill='%23111'/%3E%3Ccircle cx='22' cy='25' r='3' fill='%23111'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <!-- Iconos SVG reutilizables (se referencian con <use href="#i-...">) -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-fuel" viewBox="0 0 24 24"><path fill="currentColor" d="M4 3h9a1 1 0 0 1 1 1v7h1.5a2.5 2.5 0 0 1 2.5 2.5V18a1 1 0 0 0 2 0V9.4l-2.7-2.7 1.4-1.4 3 3c.2.2.3.5.3.7V18a3 3 0 0 1-6 0v-4.5a.5.5 0 0 0-.5-.5H14v8h1v2H2v-2h1V4a1 1 0 0 1 1-1Zm1 2v5h7V5H5Z" /></symbol>
+      <symbol id="i-person" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm-7 19c0-4 3.1-7 7-7s7 3 7 7v1H5v-1Z" /></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path fill="currentColor" d="m12 2 3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.8 5.7 21.4l1.5-7.1L1.8 9.4 9 8.6 12 2Z" /></symbol>
+      <symbol id="i-wrench" viewBox="0 0 24 24"><path fill="currentColor" d="M21.7 6.3a6 6 0 0 1-7.9 7.2l-7 7a2.1 2.1 0 1 1-3-3l7-7a6 6 0 0 1 7.2-7.9l-3.5 3.5.7 2.8 2.8.7 3.7-3.3Z" /></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 20 20 12 15.5 4 20 12 2Z" /></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7Zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" /></symbol>
+    </svg>
+
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- Efectos de pantalla: destello de choque y pulso de estado critico -->
+      <div id="fx-hit"></div>
+      <div id="fx-critical"></div>
+      <div id="fx-letterbox"></div>
+
+      <!-- ======================= HUD ======================= -->
+      <div id="hud" class="is-hidden">
+        <!-- Tablero de jornada -->
+        <section id="hud-day" class="board">
+          <header class="board-head">
+            <span class="chip">JORNADA <b id="hud-day-num">1</b></span>
+            <span id="hud-clock" class="clock">06:00</span>
+          </header>
+          <div class="money">
+            <span class="money-currency">Bs</span>
+            <span id="money-readout">15</span>
+            <div id="money-popups"></div>
+          </div>
+          <div class="goal">
+            <div class="goal-label"><span>META DEL DÍA</span><span id="goal-readout">0 / 70</span></div>
+            <div class="goal-track"><div id="goal-fill"></div></div>
+          </div>
+          <div class="rep">
+            <div id="rep-stars" class="stars"></div>
+            <span id="reputation-readout">Conductor regular</span>
+          </div>
+        </section>
+
+        <!-- Letrero LED de destino -->
+        <section id="hud-led">
+          <div class="led">
+            <svg id="gps-arrow" class="led-arrow"><use href="#i-arrow" /></svg>
+            <div class="led-body">
+              <span class="led-label">PRÓXIMA PARADA</span>
+              <span id="gps-stop-name" class="led-text">TERMINAL</span>
+            </div>
+            <span id="gps-distance" class="led-dist">0 m</span>
+          </div>
+          <ol id="route-line" class="route-line"></ol>
+        </section>
+
+        <!-- Minimapa -->
+        <section id="hud-map">
+          <canvas id="minimap-canvas" width="360" height="360"></canvas>
+          <span class="map-north">N</span>
+        </section>
+
+        <!-- Estado mecanico -->
+        <section id="hud-wear" class="board board-dark">
+          <h3>Mecánica</h3>
+          <div id="wear-bars" class="wear-bars"></div>
+        </section>
+
+        <!-- Tablero del minibus -->
+        <section id="hud-dash">
+          <svg id="speedo" viewBox="0 0 240 150" aria-hidden="true">
+            <path class="speedo-track" d="M 30 130 A 90 90 0 0 1 210 130" />
+            <path id="speedo-arc" class="speedo-arc" d="M 30 130 A 90 90 0 0 1 210 130" />
+            <g id="speedo-ticks"></g>
+            <g id="speedo-needle"><line x1="120" y1="130" x2="120" y2="52" /><circle cx="120" cy="130" r="9" /></g>
+          </svg>
+          <div class="dash-speed"><span id="speed-readout">0</span><small>km/h</small></div>
+          <div class="dash-row">
+            <div class="dash-fuel">
+              <svg class="ico"><use href="#i-fuel" /></svg>
+              <div class="fuel-track"><div id="fuel-fill"></div></div>
+              <span id="fuel-readout">100%</span>
+            </div>
+            <div class="dash-pax">
+              <svg class="ico"><use href="#i-person" /></svg>
+              <span id="passengers-readout">0/18</span>
+            </div>
+          </div>
+          <div id="seat-grid" class="seat-grid"></div>
+        </section>
+
+        <!-- Aviso contextual (parada / gasolinera / taller / grua) -->
+        <div id="prompt" class="prompt is-hidden">
+          <kbd id="prompt-key">F</kbd>
+          <div class="prompt-text">
+            <b id="prompt-title">Repostar</b>
+            <span id="prompt-detail">20 Bs</span>
+          </div>
+          <svg id="prompt-ring" class="prompt-ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" /><circle id="prompt-ring-fill" cx="18" cy="18" r="15" /></svg>
+        </div>
+
+        <div id="toast-stack"></div>
+
+        <div id="route-complete-banner" class="is-hidden">
+          <div class="rc-kicker">¡Llegamos, caseritos!</div>
+          <div class="rc-title">RUTA COMPLETADA</div>
+          <div id="route-complete-detail" class="rc-detail">+25 Bs</div>
+        </div>
+
+        <div id="camera-label" class="is-hidden">Detrás del minibús</div>
+        <div id="fps" class="is-hidden">60 FPS</div>
+
+        <div id="key-hints">
+          <span><kbd>C</kbd> cámara</span>
+          <span><kbd>H</kbd> bocina</span>
+          <span><kbd>Esc</kbd> pausa</span>
+        </div>
+      </div>
+
+      <!-- Tarjeta de inicio de jornada -->
+      <div id="day-intro" class="is-hidden">
+        <div class="di-time">06:00 · LA PAZ — EL ALTO</div>
+        <div id="di-title" class="di-title">JORNADA 1</div>
+        <div id="di-goal" class="di-goal">Meta: 70 Bs</div>
+      </div>
+
+      <!-- ======================= MENU PRINCIPAL ======================= -->
+      <div id="screen-menu" class="screen screen-menu is-hidden">
+        <div class="menu-shade"></div>
+        <div class="menu-col">
+          <div class="logo">
+            <span class="logo-route">RUTA 101</span>
+            <h1 class="logo-title"><span>MINIBÚS</span><span>RUSH</span></h1>
+            <div class="logo-sub">RUTAS URBANAS · LA PAZ — EL ALTO</div>
+          </div>
+
+          <nav class="sign-menu" id="main-menu">
+            <button class="sign" data-action="new"><i>01</i><span>Nueva jornada</span><em>Desde cero, con 15 Bs en el bolsillo</em></button>
+            <button class="sign" data-action="continue" id="btn-continue"><i>02</i><span>Continuar</span><em id="continue-detail">Jornada 2 · 120 Bs</em></button>
+            <button class="sign" data-action="howto"><i>03</i><span>Cómo manejar</span><em>Controles, pasajeros y reglas</em></button>
+            <button class="sign" data-action="settings"><i>04</i><span>Ajustes</span><em>Gráficos, sonido y voceador</em></button>
+          </nav>
+        </div>
+        <footer class="menu-foot">
+          <span>Programación Gráfica y Multimedia I · CAPA 8 · TEAM H2</span>
+          <span>Three.js · todo procedural, sin modelos externos</span>
+        </footer>
+      </div>
+
+      <!-- ======================= PAUSA (boleto) ======================= -->
+      <div id="screen-pause" class="screen screen-overlay is-hidden">
+        <div class="ticket">
+          <div class="ticket-head">
+            <span>BOLETO Nº <b id="pause-ticket">000101</b></span>
+            <span>PAUSA</span>
+          </div>
+          <div class="ticket-route">TERMINAL · MERCADO · CENTRO · ZONA SUR</div>
+          <dl class="ticket-stats" id="pause-stats"></dl>
+          <div class="ticket-cut"></div>
+          <div class="ticket-actions">
+            <button class="btn btn-primary" data-action="resume">Seguir manejando</button>
+            <button class="btn" data-action="howto">Cómo manejar</button>
+            <button class="btn" data-action="settings">Ajustes</button>
+            <button class="btn btn-ghost" data-action="quit">Guardar y salir al menú</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================= COMO MANEJAR ======================= -->
+      <div id="screen-howto" class="screen screen-overlay is-hidden">
+        <div class="panel panel-wide">
+          <h2 class="panel-title">Cómo manejar</h2>
+          <div class="howto-grid">
+            <section>
+              <h3>Volante</h3>
+              <ul class="keys">
+                <li><kbd>W</kbd><kbd>↑</kbd> Acelerar</li>
+                <li><kbd>S</kbd><kbd>↓</kbd> Frenar / reversa</li>
+                <li><kbd>A</kbd><kbd>D</kbd> Girar</li>
+                <li><kbd>Espacio</kbd> Freno de mano</li>
+                <li><kbd>H</kbd> Bocina</li>
+                <li><kbd>C</kbd> Cambiar cámara</li>
+                <li><kbd>Esc</kbd><kbd>P</kbd> Pausa</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Servicios</h3>
+              <ul class="keys">
+                <li><kbd>F</kbd> Repostar en la gasolinera</li>
+                <li><kbd>G</kbd> Reparar en el taller</li>
+                <li><kbd>R</kbd> Llamar a la grúa si te quedas sin combustible</li>
+                <li><kbd>B</kbd> Provocar un bloqueo de calle (demostración)</li>
+              </ul>
+              <p class="note">Para usar un servicio tienes que estar casi detenido junto a él.</p>
+            </section>
+            <section>
+              <h3>La ruta</h3>
+              <ol class="rules">
+                <li>Sigue el <b>haz de luz amarillo</b> o la flecha del letrero hasta la parada.</li>
+                <li>Frena dentro del círculo: los pasajeros suben solos y pagan su pasaje.</li>
+                <li>Al llegar a <b>Zona Sur</b> bajan todos y cobras el bono de ruta.</li>
+                <li>Cumple la <b>meta del día</b> antes de las 22:00.</li>
+              </ol>
+            </section>
+            <section>
+              <h3>Ojo con…</h3>
+              <ol class="rules">
+                <li>Pasarte un <b>semáforo en rojo</b>: la policía puede multarte.</li>
+                <li>Chocar: daña la carrocería y baja tu reputación.</li>
+                <li>La <b>lluvia</b>: menos agarre al frenar y girar.</li>
+                <li>Motor, frenos y llantas se gastan: repáralos en el taller.</li>
+              </ol>
+            </section>
+          </div>
+          <button class="btn btn-primary" data-action="back">Entendido</button>
+        </div>
+      </div>
+
+      <!-- ======================= AJUSTES ======================= -->
+      <div id="screen-settings" class="screen screen-overlay is-hidden">
+        <div class="panel">
+          <h2 class="panel-title">Ajustes</h2>
+          <div class="setting">
+            <label>Calidad gráfica</label>
+            <div class="seg" data-setting="quality">
+              <button data-value="baja">Baja</button>
+              <button data-value="media">Media</button>
+              <button data-value="alta">Alta</button>
+            </div>
+            <p class="note" id="quality-note">Sombras suaves, brillo de neón y todas las partículas.</p>
+          </div>
+          <div class="setting">
+            <label for="volume-slider">Volumen <b id="volume-value">70%</b></label>
+            <input type="range" id="volume-slider" min="0" max="100" step="5" />
+          </div>
+          <div class="setting">
+            <label>Voceador <small>(grita las paradas)</small></label>
+            <div class="seg" data-setting="voice">
+              <button data-value="true">Sí</button>
+              <button data-value="false">No</button>
+            </div>
+          </div>
+          <div class="setting">
+            <label>Mostrar FPS</label>
+            <div class="seg" data-setting="showFps">
+              <button data-value="true">Sí</button>
+              <button data-value="false">No</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" data-action="back">Listo</button>
+        </div>
+      </div>
+
+      <!-- ======================= FIN DE JORNADA ======================= -->
+      <div id="screen-dayend" class="screen screen-overlay is-hidden">
+        <div class="dayend">
+          <section class="ledger">
+            <header>
+              <h2>Planilla de la jornada <b id="de-day">1</b></h2>
+              <span class="ledger-hour">22:00 · fin del turno</span>
+            </header>
+            <table class="ledger-table">
+              <tbody id="de-rows"></tbody>
+            </table>
+            <div class="ledger-total"><span>Ganancia neta</span><b id="de-net">+0 Bs</b></div>
+            <div id="de-stamp" class="stamp">META CUMPLIDA</div>
+            <div id="de-stars" class="de-stars"></div>
+          </section>
+          <section class="shop">
+            <header>
+              <h2>Taller del maestro</h2>
+              <span>En el bolsillo: <b id="shop-money">0 Bs</b></span>
+            </header>
+            <div id="shop-items" class="shop-items"></div>
+            <div class="dayend-actions">
+              <button class="btn btn-primary" data-action="next-day">Siguiente jornada ▸</button>
+              <button class="btn btn-ghost" data-action="menu">Guardar y volver al menú</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ======================= CARGA ======================= -->
+      <div id="loading-screen">
+        <div class="loading-inner">
+          <div class="loading-title">MINIBÚS <span>RUSH</span></div>
+          <div class="loading-road"><div id="loading-bar-fill"></div><div class="loading-bus"></div></div>
+          <p id="loading-text">Levantando la ciudad…</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

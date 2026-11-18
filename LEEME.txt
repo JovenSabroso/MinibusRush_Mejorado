@@ -1,0 +1,37 @@
+MINIBÚS RUSH: RUTAS URBANAS
+Programación Gráfica y Multimedia I · CAPA 8 · TEAM H2
+=====================================================
+
+PARA JUGAR (sin instalar nada)
+  Haz doble clic en "Jugar.html".
+  Usa Google Chrome o Microsoft Edge actualizados (necesita WebGL).
+
+CONTROLES (en teléfonos/tablets aparecen botones táctiles en pantalla)
+  W / ↑        Acelerar
+  S / ↓        Frenar / reversa
+  A D / ← →    Girar
+  Espacio      Freno de mano
+  H            Bocina
+  C            Cambiar cámara
+  F            Repostar (en la gasolinera, detenido)
+  G            Reparar (en el taller, detenido)
+  R            Llamar a la grúa (sin combustible)
+  B            Provocar un bloqueo de calle (demostración)
+  Esc / P      Pausa
+
+SI VA LENTO
+  Menú > Ajustes > Calidad gráfica: "Media" o "Baja".
+  El juego también baja la resolución solo para mantener 60 FPS.
+  En Ajustes > Mostrar FPS se ven los FPS y la resolución interna.
+
+CÓDIGO FUENTE (carpeta "codigo-fuente")
+  Requiere Node.js 18 o superior.
+    cd codigo-fuente
+    npm install
+    npm run dev        (abre http://localhost:5173)
+    npm run build      (genera la carpeta dist/)
+
+NOVEDADES v0.2.0
+  Colisiones y conducción más estables, tráfico más natural y variado,
+  reflejos y luz mejorados, minibús y ciudad con más detalle, controles táctiles.
+  Para regenerar Jugar.html:  cd codigo-fuente && npm install && npm run build:single
